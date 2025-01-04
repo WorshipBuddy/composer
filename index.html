@@ -103,11 +103,6 @@
     
             // Remove empty <div> tags or those with only &nbsp;
             const divTags = tempDiv.querySelectorAll("div");
-            divTags.forEach(div => {
-                if (!div.textContent.trim() || div.innerHTML.trim() === "&nbsp;") {
-                    div.remove();
-                }
-            });
     
             // Regex for detecting chords
             const notes = "[CDEFGAB]";
@@ -117,34 +112,80 @@
             const sharp = "(#)?";
             const regex = new RegExp("\\b" + notes + accidentals + chords + suspends + sharp + "\\b", "g");
     
-            // Process each <div> to check for chords
+            let resultText = "";
+            let previousChordsLine = null;
+    
+            // Process each <div> to check for chords and align them
+            const processedLines = [];
             divTags.forEach(div => {
                 const lineText = div.textContent.trim();
     
                 // Check if the line contains chords using regex
-                if (regex.test(lineText)) {
-                    div.classList.add("chord"); // Add "chord" class to the div
+                const chords = lineText.match(regex);
+    
+                if (chords) {
+                    // Save the line with chords for alignment with the next line
+                    previousChordsLine = lineText;
+                } else {
+                    // If this is a lyric line, align it with the previous chords line (if any)
+                    if (previousChordsLine) {
+                        const alignedChordsLine = alignChords(previousChordsLine, lineText);
+                        processedLines.push({ text: alignedChordsLine, type: "chord" });
+                        previousChordsLine = null; // Reset
+                    }
+                    processedLines.push({ text: lineText, type: "lyric" });
                 }
             });
     
-            // Extract content while handling <div> and <span> tags
-            let resultText = "";
-            tempDiv.childNodes.forEach(node => {
-                if (node.nodeName === "DIV") {
-                    resultText += `<div${node.className ? ` class=\"${node.className}\"` : ""}>${node.textContent.trim()}</div>`;
-                } else if (node.nodeType === Node.TEXT_NODE) {
-                    resultText += node.textContent;
+            // Build the resultText from processed lines
+            processedLines.forEach(line => {
+                if (line.type === "chord") {
+                    resultText += `<div class="chord">${line.text}</div>`;
+                } else {
+                    resultText += `<div>${line.text}</div>`;
                 }
             });
-    
-            // Convert result to a JSON format
-            const jsonResult = JSON.stringify({ content: resultText.trim() });
+             // Convert result to a JSON format
+             const jsonResult = JSON.stringify({ content: resultText.trim() });
     
             // Log JSON and insert cleaned content into the editor
             console.log(jsonResult);
+    
+            // Insert cleaned and formatted content into the editor
             document.execCommand("insertHTML", false, resultText.trim());
         });
+    
+        /**
+         * Aligns chords with the corresponding lyrics using &nbsp;.
+         * @param {string} chordsLine - Line containing chords.
+         * @param {string} lyricLine - Line containing lyrics.
+         * @return {string} - Aligned chords line.
+         */
+        function alignChords(chordsLine, lyricLine) {
+            const chordArray = chordsLine.split("");
+            let alignedChords = "";
+            let lyricIndex = 0;
+    
+            for (let i = 0; i < chordArray.length; i++) {
+                if (chordArray[i] !== " ") {
+                    // Align chord with the corresponding position in the lyric line
+                    while (lyricIndex < lyricLine.length && lyricLine[lyricIndex] === " ") {
+                        alignedChords += "&nbsp;";
+                        lyricIndex++;
+                    }
+                    alignedChords += chordArray[i];
+                    lyricIndex++;
+                } else {
+                    // Preserve spacing using &nbsp;
+                    alignedChords += "&nbsp;";
+                }
+            }
+    
+            return alignedChords;
+        }
     </script>
+    
+    
     
     
 </body>
