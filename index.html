@@ -200,7 +200,7 @@
             // Process each <div> to check for chords and align them
             const processedLines = [];
             divTags.forEach(div => {
-                const lineText = div.textContent.trim();
+                const lineText = div.textContent;
 
                 // Check if the line contains chords using regex
                 const chords = lineText.match(regex);
@@ -234,7 +234,7 @@
             //console.log(jsonResult);
 
             // Insert cleaned and formatted content into the editor
-            document.execCommand("insertHTML", false, resultText.trim());
+            document.execCommand("insertHTML", false, resultText);
         });
 
         /**
@@ -368,7 +368,17 @@
 
                     button.addEventListener("click", async function () {
                         const rawLyrics = Array.from(document.querySelectorAll("#song-content-editor div"))
-                            .map(el => el.innerHTML.replace(/<br\s*\/?>/g, "\n").replace(/&nbsp;/g, " ").trim())
+                            .map(el => {
+                                let line = el.innerHTML.replace(/<br\s*\/?>/g, "\n").replace(/&nbsp;/g, " ");
+
+                                // Preserve leading spaces at the start of each line
+                                const leadingSpaces = line.match(/^\s+/);
+                                if (leadingSpaces) {
+                                    const preservedSpaces = leadingSpaces[0].replace(/ /g, " "); // Use actual spaces
+                                    line = preservedSpaces + line;  // Preserve leading spaces but trim only the right side
+                                }
+                                return line;
+                            })
                             .join("\n");
 
                         const processedLyrics = replaceChordsWithNumbers(rawLyrics);
