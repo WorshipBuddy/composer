@@ -184,9 +184,191 @@
             return alignedChords;
         }
     </script>
-    
-    
-    
+    <script>
+        document.addEventListener("DOMContentLoaded", async function () {
+            const apiURL = "https://worshipbuddyapi-staging.onrender.com/spanish_todo_songs/";
+            const editor = document.getElementById("sg-editor");
+            let currentSongNumber = null;
+            let unlockTimer = null;
+
+            try {
+                const response = await fetch(apiURL, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                const songs = await response.json();
+                console.log(songs);
+
+                const unlockedSongs = songs.filter(song => song.locked === false);
+                if (unlockedSongs.length > 0) {
+                    editor.innerHTML = "Click a song number to edit:<br><br>" +
+                        unlockedSongs.map(song => `<button class="song-btn btn btn-outline-secondary m-1" data-number="${song.song_number}">Song ${song.song_number}</button>`).join("");
+                } else {
+                    editor.innerHTML = "No unlocked songs available.";
+                }
+
+                document.querySelectorAll(".song-btn").forEach(button => {
+                    button.addEventListener("click", async function () {
+                        currentSongNumber = this.dataset.number;
+
+                        try {
+                            const putResponse = await fetch(`https://worshipbuddyapi-staging.onrender.com/spanish_todo_songs/${currentSongNumber}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ locked_status: true })
+                            });
+
+                            if (!putResponse.ok) {
+                                throw new Error(`Failed to lock song ${currentSongNumber}: ${putResponse.status}`);
+                            }
+
+                            console.log(`Song ${currentSongNumber} locked successfully.`);
+                            loadSongEditor(currentSongNumber);
+                            startUnlockTimer(currentSongNumber);  // Start the 5-minute timer
+
+                            // Add event listeners to unlock the song if the user leaves the page
+                            window.onbeforeunload = unlockSongOnLeave;
+                            document.addEventListener("visibilitychange", handleVisibilityChange);
+
+                        } catch (error) {
+                            console.error("Error locking the song:", error);
+                            alert(`Failed to lock song ${currentSongNumber}. Please try again.`);
+                        }
+                    });
+                });
+
+            } catch (error) {
+                console.error("Error fetching songs:", error);
+                editor.innerHTML = "Failed to load songs. Please try again later.";
+            }
+
+            function loadSongEditor(songNumber) {
+                editor.innerHTML = `
+        <div class="p-3 my-1 border rounded" contentEditable="true" id="song-content-editor">
+            <strong>Editing Song ${songNumber}</strong><br><br>
+            Paste & Edit Song Lyrics Here
+        </div>
+        <div class="mt-3" id="song-details">
+            <label for="song-number" class="form-label">Song Number</label>
+            <input type="text" class="form-control mb-3" id="song-number" value="${songNumber}" disabled>
+            <label for="song-title" class="form-label">Song Title</label>
+            <input type="text" class="form-control mb-3" id="song-title" placeholder="Enter song title">
+            <label for="song-author" class="form-label">Song Key</label>
+            <input type="text" class="form-control mb-3" id="song-author" placeholder="Enter song author">
+            <button class="btn btn-primary mt-3" id="submit-button">Submit</button>
+        </div>
+    `;
+
+                document.getElementById("submit-button").addEventListener("click", function () {
+                    const songNumber = document.getElementById("song-number").value;
+                    const songTitle = document.getElementById("song-title").value;
+                    const songKey = document.getElementById("song-author").value;
+
+                    console.log("Song Number:", songNumber);
+                    console.log("Song Title:", songTitle);
+                    console.log("Song Key:", songKey);
+
+                    const chordElements = document.querySelectorAll("#sg-editor .chord");
+                    let transformedLines = [];
+
+                    chordElements.forEach(element => {
+                        let lineText = element.innerHTML.replace(/&nbsp;/g, " ");  // Convert &nbsp; back to spaces
+                        let transformedLine = "";
+
+                        let i = 0;
+                        while (i < lineText.length) {
+                            const twoChars = lineText.substring(i, i + 2);
+                            const isNote = /^[A-G](b|#)?/.test(twoChars);  // Check if the first two characters form a valid note with accidental
+
+                            if (isNote) {
+                                let note = twoChars[0];  // First letter is always the note
+                                let accidental = (twoChars[1] === "b" || twoChars[1] === "#") ? twoChars[1] : "";  // Check for accidental
+                                transformedLine += `|${note}${accidental}|`;  // Add note with accidental wrapped in |
+                                i += accidental ? 2 : 1;  // Move index accordingly
+                            } else {
+                                transformedLine += lineText[i] === " " ? " " : `*${lineText[i]}*`;  // Use regular space instead of &nbsp;
+                                i++;
+                            }
+                        }
+
+                        transformedLines.push(transformedLine);
+                    });
+
+                    const jsonResult = {
+                        song_number: songNumber,
+                        song_title: songTitle,
+                        song_key: songKey,
+                        chords: transformedLines
+                    };
+
+                    console.log("Transformed JSON Result:", JSON.stringify(jsonResult, null, 2));
+                });
+
+                // Prevent selecting everything inside the editor with Ctrl+A
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === 'a' && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();  // Disable full selection
+                        const contentEditor = document.getElementById('song-content-editor');
+                        const range = document.createRange();
+                        const selection = window.getSelection();
+                        range.selectNodeContents(contentEditor);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    }
+                });
+
+                // Prevent delete/backspace outside the content editor
+                document.addEventListener('keydown', function (e) {
+                    if ((e.key === 'Backspace' || e.key === 'Delete') && document.activeElement.id !== 'song-content-editor') {
+                        e.preventDefault();  // Prevent deleting input fields
+                    }
+                });
+            }
+
+            function startUnlockTimer(songNumber) {
+                if (unlockTimer) clearTimeout(unlockTimer);
+
+                unlockTimer = setTimeout(async function () {
+                    await unlockSong(songNumber);
+                }, 5 * 60 * 1000);  // 5 minutes in milliseconds
+            }
+
+            async function unlockSong(songNumber) {
+                try {
+                    const unlockResponse = await fetch(`https://worshipbuddyapi-staging.onrender.com/spanish_todo_songs/${songNumber}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ locked_status: false })
+                    });
+
+                    if (!unlockResponse.ok) {
+                        throw new Error(`Failed to unlock song ${songNumber}: ${unlockResponse.status}`);
+                    }
+
+                    console.log(`Song ${songNumber} unlocked successfully.`);
+                } catch (error) {
+                    console.error("Error unlocking the song:", error);
+                }
+            }
+
+            async function unlockSongOnLeave() {
+                if (currentSongNumber) {
+                    await unlockSong(currentSongNumber);
+                }
+            }
+
+            function handleVisibilityChange() {
+                if (document.visibilityState === "hidden" && currentSongNumber) {
+                    unlockSong(currentSongNumber);
+                }
+            }
+        });
+    </script>
     
 </body>
 </html>
