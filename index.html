@@ -250,7 +250,6 @@
             function loadSongEditor(songNumber) {
                 editor.innerHTML = `
         <div class="p-3 my-1 border rounded" contentEditable="true" id="song-content-editor">
-            <strong>Editing Song ${songNumber}</strong><br><br>
             Paste & Edit Song Lyrics Here
         </div>
         <div class="mt-3" id="song-details">
@@ -259,7 +258,7 @@
             <label for="song-title" class="form-label">Song Title</label>
             <input type="text" class="form-control mb-3" id="song-title" placeholder="Enter song title">
             <label for="song-author" class="form-label">Song Key</label>
-            <input type="text" class="form-control mb-3" id="song-author" placeholder="Enter song author">
+            <input type="text" class="form-control mb-3" id="song-author" placeholder="Enter song key">
             <button class="btn btn-primary mt-3" id="submit-button">Submit</button>
         </div>
     `;
@@ -319,13 +318,6 @@
                         range.selectNodeContents(contentEditor);
                         selection.removeAllRanges();
                         selection.addRange(range);
-                    }
-                });
-
-                // Prevent delete/backspace outside the content editor
-                document.addEventListener('keydown', function (e) {
-                    if ((e.key === 'Backspace' || e.key === 'Delete') && document.activeElement.id !== 'song-content-editor') {
-                        e.preventDefault();  // Prevent deleting input fields
                     }
                 });
             }
