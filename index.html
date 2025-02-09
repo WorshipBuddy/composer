@@ -200,7 +200,7 @@
             // Process each <div> to check for chords and align them
             const processedLines = [];
             divTags.forEach(div => {
-                const lineText = div.textContent;
+                const lineText = div.textContent.trim();
 
                 // Check if the line contains chords using regex
                 const chords = lineText.match(regex);
@@ -234,7 +234,7 @@
             //console.log(jsonResult);
 
             // Insert cleaned and formatted content into the editor
-            document.execCommand("insertHTML", false, resultText);
+            document.execCommand("insertHTML", false, resultText.trim());
         });
 
         /**
@@ -375,7 +375,7 @@
                                 const leadingSpaces = line.match(/^\s+/);
                                 if (leadingSpaces) {
                                     const preservedSpaces = leadingSpaces[0].replace(/ /g, " "); // Use actual spaces
-                                    line = preservedSpaces + line;  // Preserve leading spaces but trim only the right side
+                                    line = preservedSpaces + line.trimStart();  // Preserve leading spaces but trim only the right side
                                 }
                                 return line;
                             })
