@@ -21,7 +21,7 @@
         text-align: center;
         margin-left: 15px;
     }
-    .sg-editor{
+    .sg-editor, #song-content-editor{
         background-color: #f0f0f0;
         color:#0c0c0c;
         font-family: monospace;
@@ -29,6 +29,7 @@
         min-height: 400px;
 
     }
+ 
     #sg-editor{
         font-family: monospace; 
         font-size: 14px;
@@ -75,7 +76,7 @@
           <div class="col-4">
             <div class="border rounded">
             <legend>Song Editor</legend>
-            <div id="sg-editor" class="p-3 my-1" contentEditable="true">
+            <div id="sg-editor" class="p-3 my-1">
                 Paste & Edit Songs Here  
             </div>
         </div>
@@ -249,16 +250,17 @@
 
             function loadSongEditor(songNumber) {
                 editor.innerHTML = `
-        <div class="p-3 my-1 border rounded" contentEditable="true" id="song-content-editor">
-            Paste & Edit Song Lyrics Here
-        </div>
+     
         <div class="mt-3" id="song-details">
-            <label for="song-number" class="form-label">Song Number</label>
-            <input type="text" class="form-control mb-3" id="song-number" value="${songNumber}" disabled>
+            <label for="song-number" class="form-label">Song Number: ${songNumber}</label><br>
+           
             <label for="song-title" class="form-label">Song Title</label>
             <input type="text" class="form-control mb-3" id="song-title" placeholder="Enter song title">
             <label for="song-author" class="form-label">Song Key</label>
             <input type="text" class="form-control mb-3" id="song-author" placeholder="Enter song key">
+             <div class="p-3 my-1 border rounded" contentEditable="true" id="song-content-editor">
+                Paste & Edit Song Lyrics Here
+            </div>
             <button class="btn btn-primary mt-3" id="submit-button">Submit</button>
         </div>
     `;
