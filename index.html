@@ -357,6 +357,9 @@
                             if (unlockedSongs.length > 0) {
                                 editor.innerHTML = "Click a song number to edit:<br><br>" +
                                     unlockedSongs.map(song => `<button class="song-btn btn btn-outline-secondary m-1" data-number="${song.song_number}">Song ${song.song_number}</button>`).join("");
+
+                                // Reattach the event listeners to the newly created buttons
+                                bindSongButtonEvents();
                             } else {
                                 editor.innerHTML = "No unlocked songs available.";
                             }
@@ -364,6 +367,36 @@
                             console.error("Error fetching songs:", error);
                             editor.innerHTML = "Failed to load songs. Please try again later.";
                         }
+                    }
+
+                    function bindSongButtonEvents() {
+                        document.querySelectorAll(".song-btn").forEach(button => {
+                            button.addEventListener("click", async function () {
+                                currentSongNumber = this.dataset.number;
+
+                                try {
+                                    const putResponse = await fetch(`https://api.worshipbuddy.org/spanish_todo_songs/${currentSongNumber}`, {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ locked_status: true })
+                                    });
+
+                                    if (!putResponse.ok) {
+                                        throw new Error(`Failed to lock song ${currentSongNumber}: ${putResponse.status}`);
+                                    }
+
+                                    console.log(`Song ${currentSongNumber} locked successfully.`);
+                                    loadSongEditor(currentSongNumber);
+                                    startUnlockTimer(currentSongNumber);
+
+                                    window.onbeforeunload = unlockSongOnLeave;
+                                    document.addEventListener("visibilitychange", handleVisibilityChange);
+                                } catch (error) {
+                                    console.error("Error locking the song:", error);
+                                    alert(`Failed to lock song ${currentSongNumber}. Please try again.`);
+                                }
+                            });
+                        });
                     }
 
                     button.addEventListener("click", async function () {
@@ -396,7 +429,7 @@
                             writer: "",
                             copyright: "",
                             CCLI: "",
-                            themes: [""]
+                            themes: []
                         };
 
                         try {
@@ -414,7 +447,8 @@
                                 await deleteSong(songNumber);
 
                                 // Step 2: Reload the song list
-                                window.location.reload();
+                                loadSongList();
+                                editor.innerHTML = "Song has been submitted. Select another song to edit.";
                             } else {
                                 console.error("Failed to post song:", response.statusText);
                                 alert("Failed to post the song. Please try again.");
