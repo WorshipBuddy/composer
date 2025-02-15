@@ -124,34 +124,61 @@
 
       // Use white-space: pre to preserve spacing in each line
       function processLyrics(lyrics) {
-        const lines = lyrics.split('\n');
-        return lines.map(line => {
-          // Replace chord placeholders |number| with <span class="chord">.
-          line = line.replace(/\|(\d+)\|/g, (match, numStr) => {
-            const noteIndex = parseInt(numStr, 10);
-            const baseNote = notes[noteIndex] || "";
-            let chordText = numericChords
-              ? getNumeric(baseNote, selectedKey)
-              : getEnharmonic(baseNote, selectedKey);
+  // If 'lyrics' is missing or not a string, return empty
+  if (!lyrics) {
+    console.warn("processLyrics was called with an undefined or empty 'lyrics' parameter");
+    return "";
+  }
 
-            // If chord has # or b, split out the accidental
-            if (chordText.includes('#') || chordText.includes('b')) {
-              const parts = chordText.split(/(?=[#b])/);
-              if (parts.length >= 2) {
-                chordText = parts[0] + '<span style="font-size:0.9em;">' + parts[1] + '</span>' + (parts.slice(2).join('') || '');
-              }
-            }
-            return `<span class="chord">${chordText}</span>`;
-          });
+  // Normalize Windows line endings to just "\n"
+  lyrics = lyrics.replace(/\r\n/g, "\n");
 
-          // Replace *asterisked text* with <strong>.
-          line = line.replace(/\*(.*?)\*/g, '<strong>$1</strong>');
+  // Split the lyrics into an array of lines
+  const lines = lyrics.split("\n");
 
-          // Wrap the entire line in a div with white-space: pre
-          return `<div style="white-space: pre;">${line}</div>`;
-        }).join('');
+  // Process each line
+  const processedLines = lines.map((line) => {
+    // 1) Replace chord placeholders: |0|, |1|, etc.
+    line = line.replace(/\|(\d+)\|/g, (match, numStr) => {
+      const noteIndex = parseInt(numStr, 10);
+      const baseNote = notes[noteIndex] || "";
+      let chordText = numericChords
+        ? getNumeric(baseNote, selectedKey)
+        : getEnharmonic(baseNote, selectedKey);
+
+      // If chord has # or b, split out the accidental
+      if (chordText.includes("#") || chordText.includes("b")) {
+        const parts = chordText.split(/(?=[#b])/);
+        if (parts.length >= 2) {
+          chordText =
+            parts[0] +
+            '<span style="font-size:0.9em;">' +
+            parts[1] +
+            "</span>" +
+            (parts.slice(2).join("") || "");
+        }
       }
-      // ----- End Lyrics Processing Setup -----
+      return `<span class="chord">${chordText}</span>`;
+    });
+
+    // 2) Replace *asterisked text* with <strong>
+    line = line.replace(/\*(.*?)\*/g, "<strong>$1</strong>");
+
+    // 3) If the line is empty, we output a blank line <div> 
+    //    so it creates that extra space for a double newline
+    if (line.trim() === "") {
+      // This yields a visible blank line
+      return `<div style="white-space: pre;"><br></div>`;
+    }
+
+    // 4) Otherwise, wrap the line in a div with white-space: pre
+    return `<div style="white-space: pre;">${line}</div>`;
+  });
+
+  // Join everything into a single HTML string
+  return processedLines.join("");
+}
+
 
       let songsData = [];
 
