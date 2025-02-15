@@ -74,6 +74,9 @@
     .device #preview-lyrics .chord, .device #preview-lyrics strong, .device #preview-lyrics span{
         display:initial;
     }
+    .line1{
+        font-weight: bold;
+    }
 
 
 </style>
@@ -193,7 +196,7 @@
 
       // Use white-space: pre to preserve spacing in each line
       function processLyrics(lyrics) {
-        console.log("before the thingiy "+lyrics)
+      
   // If 'lyrics' is missing or not a string, return empty
   if (!lyrics) {
     console.warn("processLyrics was called with an undefined or empty 'lyrics' parameter");
@@ -246,7 +249,7 @@
   });
 
   // Join everything into a single HTML string
-  console.log("after the thing "+processedLines)
+
   return processedLines.join("");
 }
 
@@ -509,14 +512,14 @@ window.addEventListener("message", function (event) {
                                 .join("\n");
                             
                             rawLyrics = rawLyrics.trim();
-                            console.log("🛠 Processing lyrics with:", rawLyrics);
+                           
                             
                             
                             const formattedLyrics = processLyrics(replaceChordsWithNumbers(rawLyrics));
                             
 
-                            document.getElementById("preview-lyrics").innerHTML = formattedLyrics;
-                            console.log("✅ Lyrics preview updated.");
+                            document.getElementById("preview-lyrics").innerHTML = "<span class='line1'>"+ currentSongNumber+". "+ songTitle +"</span>" + formattedLyrics;
+                          
                         });
                     }
 
