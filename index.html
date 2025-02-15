@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Worship Buddy Composer</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="devices.min.css">
 <style>
     body{
         background-color: #212529;
@@ -39,13 +40,39 @@
         font-family: monospace;
         font-size: 14px;
     }
-    .chord{
-        background-color: #666;
+      /* Minimal chord style */
+      .chord {
         font-weight: bold;
-    }
+      }
+      #sg-editor .chord{
+        background-color: #666;
+      }
     #pdf-container{
         overflow: auto;
         width:100%;
+    }
+    .custom-col-49 {
+    width: 49%;
+    }
+
+    .custom-col-24 {
+    width: 24%;
+    }
+    #preview-lyrics{
+        position: absolute;
+        top:0px;
+        margin-top: 115px;
+        margin-left: 15px;
+        background-color: #fff;
+        color: #000;
+        font-family: monospace;
+        font-size: 14px;
+        height: 580px;
+        overflow: scroll;
+        width:85%
+    }
+    .device #preview-lyrics .chord, .device #preview-lyrics strong, .device #preview-lyrics span{
+        display:initial;
     }
 
 
@@ -53,7 +80,7 @@
 </head>
   <body>
 
-    <div class="container">
+    <div class="container-fluid">
         <nav class="navbar mb-5 bg-dark border-bottom border-body" data-bs-theme="dark">
             <div class="container-fluid">
               <a class="navbar-brand" href="#">
@@ -64,7 +91,7 @@
           </nav>
         <div class="row">
 
-          <div class="col-8 p-2">
+          <div class=" custom-col-49" >
             <div class="border rounded">
             <legend>Songbook</legend>
 
@@ -74,13 +101,34 @@
             </div>
         </div>
           </div>
-          <div class="col-4">
+          <div class=" custom-col-24">
             <div class="border rounded">
-            <legend>Song Editor</legend>
-            <div id="sg-editor" class="p-3 my-1">
-                Song Lists Loads here....
+                <legend>Song Editor</legend>
+                <div id="sg-editor" class="p-3 my-1">
+                    Song Lists Loads here....
+                </div>
             </div>
-        </div>
+
+          </div>
+          <div class=" custom-col-24">
+           
+                <div class="device device-iphone-14-pro">
+                    <div class="device-frame">
+                        <div id="phone">
+                            <img class="device-screen" src="bkg.jpeg">
+                            <div id="preview-lyrics">
+                                <!--Lyrics Preview goes here-->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="device-stripe"></div>
+                    <div class="device-header"></div>
+                    <div class="device-sensors"></div>
+                    <div class="device-btns"></div>
+                    <div class="device-power"></div>
+                  </div>
+                
+        
 
           </div>
 
@@ -93,9 +141,118 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
     <script>
+        
+              // ----- New Lyrics Processing Setup -----
+      // Default settings and note definitions
+      const notes = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+      let selectedKey = "C";      // Default key; you can change this as needed
+      let numericChords = false;  // If true, uses numeric chord conversion
+      let chordFormat = "Arabic"; // Only used when numericChords is true
 
-    </script>
-    <script>
+      function getEnharmonic(note, key) {
+        const enharmonicNotes = {
+          "C": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" },
+          "C#": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" },
+          "D": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" },
+          "Eb": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" },
+          "E": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" },
+          "F": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" },
+          "F#": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" },
+          "G": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" },
+          "Ab": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" },
+          "A": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" },
+          "Bb": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" },
+          "B": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" }
+        };
+        if (enharmonicNotes.hasOwnProperty(key) && enharmonicNotes[key].hasOwnProperty(note)) {
+          return enharmonicNotes[key][note];
+        }
+        return note;
+      }
+
+      function getNumeric(note, key) {
+        const arabicNotes = {
+          "C": { "C": "1", "C#": "#1", "D": "2", "Eb": "#2", "E": "3", "F": "4", "F#": "#4", "G": "5", "Ab": "#5", "A": "6", "Bb": "b7", "B": "7" },
+          "C#": { "C": "7", "C#": "1", "D": "#1", "Eb": "2", "E": "#2", "F": "3", "F#": "4", "G": "#4", "Ab": "5", "A": "#5", "Bb": "6", "B": "b7" },
+          "D": { "C": "b7", "C#": "7", "D": "1", "Eb": "#1", "E": "2", "F": "#2", "F#": "3", "G": "4", "Ab": "#4", "A": "5", "Bb": "#5", "B": "6" },
+          "Eb": { "C": "6", "C#": "b7", "D": "7", "Eb": "1", "E": "#1", "F": "2", "F#": "#2", "G": "3", "Ab": "4", "A": "#4", "Bb": "5", "B": "#5" },
+          "E": { "C": "#5", "C#": "6", "D": "b7", "Eb": "7", "E": "1", "F": "#1", "F#": "2", "G": "#2", "Ab": "3", "A": "4", "Bb": "#4", "B": "5" },
+          "F": { "C": "5", "C#": "#5", "D": "6", "Eb": "b7", "E": "7", "F": "1", "F#": "#1", "G": "2", "Ab": "#2", "A": "3", "Bb": "4", "B": "#4" },
+          "F#": { "C": "#4", "C#": "5", "D": "#5", "Eb": "6", "E": "b7", "F": "7", "F#": "1", "G": "#1", "Ab": "2", "A": "#2", "Bb": "3", "B": "4" },
+          "G": { "C": "4", "C#": "#4", "D": "5", "Eb": "#5", "E": "6", "F": "b7", "F#": "7", "G": "1", "Ab": "#1", "A": "2", "Bb": "#2", "B": "3" },
+          "Ab": { "C": "3", "C#": "4", "D": "#4", "Eb": "5", "E": "#5", "F": "6", "F#": "b7", "G": "7", "Ab": "1", "A": "#1", "Bb": "2", "B": "#2" },
+          "A": { "C": "#2", "C#": "3", "D": "4", "Eb": "#4", "E": "5", "F": "#5", "F#": "6", "G": "b7", "Ab": "7", "A": "1", "Bb": "#1", "B": "2" },
+          "Bb": { "C": "2", "C#": "#2", "D": "3", "Eb": "4", "E": "#4", "F": "5", "F#": "#5", "G": "6", "Ab": "b7", "A": "7", "Bb": "1", "B": "#1" },
+          "B": { "C": "#1", "C#": "2", "D": "#2", "Eb": "3", "E": "4", "F": "#4", "F#": "5", "G": "#5", "Ab": "6", "A": "b7", "Bb": "7", "B": "1" }
+        };
+        if (arabicNotes.hasOwnProperty(key) && arabicNotes[key].hasOwnProperty(note)) {
+          return arabicNotes[key][note];
+        }
+        return note;
+      }
+
+      // Use white-space: pre to preserve spacing in each line
+      function processLyrics(lyrics) {
+        console.log("before the thingiy "+lyrics)
+  // If 'lyrics' is missing or not a string, return empty
+  if (!lyrics) {
+    console.warn("processLyrics was called with an undefined or empty 'lyrics' parameter");
+    return "";
+  }
+
+  // Normalize Windows line endings to just "\n"
+  lyrics = lyrics.replace(/\r\n/g, "\n");
+
+  // Split the lyrics into an array of lines
+  const lines = lyrics.split("\n");
+
+  // Process each line
+  const processedLines = lines.map((line) => {
+    // 1) Replace chord placeholders: |0|, |1|, etc.
+    line = line.replace(/\|(\d+)\|/g, (match, numStr) => {
+      const noteIndex = parseInt(numStr, 10);
+      const baseNote = notes[noteIndex] || "";
+      let chordText = numericChords
+        ? getNumeric(baseNote, selectedKey)
+        : getEnharmonic(baseNote, selectedKey);
+
+      // If chord has # or b, split out the accidental
+      if (chordText.includes("#") || chordText.includes("b")) {
+        const parts = chordText.split(/(?=[#b])/);
+        if (parts.length >= 2) {
+          chordText =
+            parts[0] +
+            '<span style="font-size:0.9em;">' +
+            parts[1] +
+            "</span>" +
+            (parts.slice(2).join("") || "");
+        }
+      }
+      return `<span class="chord">${chordText}</span>`;
+    });
+
+    // 2) Replace *asterisked text* with <strong>
+    line = line.replace(/\*(.*?)\*/g, "<strong>$1</strong>");
+
+    // 3) If the line is empty, we output a blank line <div> 
+    //    so it creates that extra space for a double newline
+    if (line.trim() === "") {
+      // This yields a visible blank line
+      return `<div style="white-space: pre;"><br></div>`;
+    }
+
+    // 4) Otherwise, wrap the line in a div with white-space: pre
+    return `<div style="white-space: pre;">${line}</div>`;
+  });
+
+  // Join everything into a single HTML string
+  console.log("after the thing "+processedLines)
+  return processedLines.join("");
+}
+
+
+      let songsData = [];
+
         document.addEventListener("DOMContentLoaded", async function () {
             const apiURL = "https://api.worshipbuddy.org/spanish_todo_songs/";
             const editor = document.getElementById("sg-editor");
@@ -308,6 +465,7 @@ window.addEventListener("message", function (event) {
 
             return alignedChords;
         }
+       
 
                 document.getElementById("pipes-button").addEventListener("click", function () {
                     const songTitle = document.getElementById("song-title").value;
@@ -337,6 +495,30 @@ window.addEventListener("message", function (event) {
 
                         element.innerHTML = transformedLine;
                     });
+                    if (!document.getElementById("preview-button")) {
+                        const previewButton = document.createElement("button");
+                        previewButton.id = "preview-button";
+                        previewButton.className = "btn btn-secondary mt-3 mx-5";
+                        previewButton.innerText = "Preview";
+                        this.insertAdjacentElement("afterend", previewButton);
+                        
+                        previewButton.addEventListener("click", function () {
+                            console.log("📜 Preview button clicked!");
+                            let rawLyrics = Array.from(document.querySelectorAll("#song-content-editor div"))
+                                .map(el => el.innerText.replace(/<br\s*\/?>/g, "\n").replace(/&nbsp;/g, " "))
+                                .join("\n");
+                            
+                            rawLyrics = rawLyrics.trim();
+                            console.log("🛠 Processing lyrics with:", rawLyrics);
+                            
+                            
+                            const formattedLyrics = processLyrics(replaceChordsWithNumbers(rawLyrics));
+                            
+
+                            document.getElementById("preview-lyrics").innerHTML = formattedLyrics;
+                            console.log("✅ Lyrics preview updated.");
+                        });
+                    }
 
                     // Change button text to "POST Song"
                     const button = document.getElementById("pipes-button");
