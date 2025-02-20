@@ -557,9 +557,8 @@ document.getElementById("song-content-editor").addEventListener("paste", functio
 
                         element.innerHTML = transformedLine;
                     });
-                   
 
-                    // Change button text to "POST Song"
+
                     const button = document.getElementById("pipes-button");
                     button.textContent = "POST Song";
 
@@ -664,19 +663,9 @@ document.getElementById("song-content-editor").addEventListener("paste", functio
                     }
 
                     button.addEventListener("click", async function () {
-                        const rawLyrics = Array.from(document.querySelectorAll("#song-content-editor div"))
-                            .map(el => {
-                                let line = el.innerHTML.replace(/<br\s*\/?>/g, "\n").replace(/&nbsp;/g, " ");
-
-                                // Preserve leading spaces at the start of each line
-                                const leadingSpaces = line.match(/^\s+/);
-                                if (leadingSpaces) {
-                                    const preservedSpaces = leadingSpaces[0].replace(/ /g, " "); // Use actual spaces
-                                    line = preservedSpaces + line.trimStart();  // Preserve leading spaces but trim only the right side
-                                }
-                                return line;
-                            })
-                            .join("\n");
+                        const rawLyrics = Array.from(document.querySelectorAll("#song-content-editor div, #song-content-editor pre"))
+                            .map(el => el.textContent) // Use textContent to get raw text (no HTML)
+                            .join("\n"); // Maintain new lines
 
                         const processedLyrics = replaceChordsWithNumbers(rawLyrics);
 
@@ -684,7 +673,7 @@ document.getElementById("song-content-editor").addEventListener("paste", functio
                         const convertedKey = convertKeyToNumber(songKeyInput);
 
                         const songData = {
-                            song_number: parseInt(songNumber) || 999,
+                            song_number: parseInt(songNumber) || 9999,
                             english_number: "",
                             title: songTitle,
                             english_title: "",
@@ -711,7 +700,7 @@ document.getElementById("song-content-editor").addEventListener("paste", functio
                                 await deleteSong(songNumber);
 
                                 // Step 2: Reload the song list
-                                loadSongList();
+                                window.location.reload();
                                 editor.innerHTML = "Song has been submitted. Select another song to edit.";
                             } else {
                                 console.error("Failed to post song:", response.statusText);

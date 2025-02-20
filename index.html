@@ -675,7 +675,7 @@ window.addEventListener("message", function (event) {
                                 await deleteSong(songNumber);
 
                                 // Step 2: Reload the song list
-                                loadSongList();
+                                window.location.reload();
                                 editor.innerHTML = "Song has been submitted. Select another song to edit.";
                             } else {
                                 console.error("Failed to post song:", response.statusText);
