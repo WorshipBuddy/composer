@@ -527,55 +527,60 @@ document.getElementById("song-content-editor").addEventListener("paste", functio
 
             return alignedChords;
         }
-       
 
-                document.getElementById("pipes-button").addEventListener("click", function () {
-                    const songTitle = document.getElementById("song-title").value;
-                    const songKey = document.getElementById("song-author").value;
+            document.getElementById("pipes-button").addEventListener("click", async function () {
+                const button = document.getElementById("pipes-button");
+                button.textContent = "Processing...";
+                button.disabled = true;  // Disable the button to prevent multiple clicks
 
-                    const chordElements = document.querySelectorAll("#sg-editor .chord");
+                // Step 1: Find Chords
+                const chordElements = document.querySelectorAll("#sg-editor .chord");
+                chordElements.forEach(element => {
+                    let lineText = element.innerHTML.replace(/&nbsp;/g, " "); // Convert &nbsp; to spaces
+                    let transformedLine = "";
 
-                    chordElements.forEach(element => {
-                        let lineText = element.innerHTML.replace(/&nbsp;/g, " "); // Convert &nbsp; to regular spaces
-                        let transformedLine = "";
+                    let i = 0;
+                    while (i < lineText.length) {
+                        const twoChars = lineText.substring(i, i + 2);
+                        const isNote = /^[A-G](b|#)?/.test(twoChars); // Check for notes with accidentals
 
-                        let i = 0;
-                        while (i < lineText.length) {
-                            const twoChars = lineText.substring(i, i + 2);
-                            const isNote = /^[A-G](b|#)?/.test(twoChars); // Check for notes with accidental
-
-                            if (isNote) {
-                                let note = twoChars[0];
-                                let accidental = (twoChars[1] === "b" || twoChars[1] === "#") ? twoChars[1] : "";
-                                transformedLine += `|${note}${accidental}|`; // Wrap note in |
-                                i += accidental ? 2 : 1;
-                            } else {
-                                transformedLine += lineText[i] === " " ? " " : `*${lineText[i]}*`;
-                                i++;
-                            }
+                        if (isNote) {
+                            let note = twoChars[0];
+                            let accidental = (twoChars[1] === "b" || twoChars[1] === "#") ? twoChars[1] : "";
+                            transformedLine += `|${note}${accidental}|`; // Wrap note in |
+                            i += accidental ? 2 : 1;
+                        } else {
+                            transformedLine += lineText[i] === " " ? " " : `*${lineText[i]}*`;
+                            i++;
                         }
+                    }
 
-                        element.innerHTML = transformedLine;
-                    });
+                    element.innerHTML = transformedLine;
+                });
 
+                // Wait for 1 second before proceeding
+                setTimeout(async () => {
+                    button.textContent = "Posting Song...";
 
-                    const button = document.getElementById("pipes-button");
-                    button.textContent = "POST Song";
+                    // Step 2: Post Song
+                    const songTitle = document.getElementById("song-title").value;
+                    const songKeyInput = document.getElementById("song-author").value;
+                    const songNumber = parseInt(currentSongNumber) || 9999;
 
-                    // Remove the current event listener and add a new one for POST Song
-                    button.removeEventListener("click", arguments.callee);
                     const chordMap = {
                         "C": 0, "C#": 1, "Db": 1, "D": 2, "Eb": 3, "D#": 3, "E": 4, "F": 5, "F#": 6,
                         "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9, "Bb": 10, "A#": 10, "B": 11, "Cb": 11
                     };
+
                     const keyMap = {
                         "C": 0, "C#": 1, "D": 2, "Eb": 3, "E": 4, "F": 5, "F#": 6, "G": 7,
                         "Ab": 8, "A": 9, "Bb": 10, "B": 11, "Cm": 12, "C#m": 13, "Dm": 14,
                         "Ebm": 15, "Em": 16, "Fm": 17, "F#m": 18, "Gm": 19, "Abm": 20,
                         "Am": 21, "Bbm": 22, "Bm": 23
                     };
+
                     function convertKeyToNumber(key) {
-                        return keyMap[key] !== undefined ? keyMap[key] : null;  // Return null if the key isn't found
+                        return keyMap[key] !== undefined ? keyMap[key] : null;
                     }
 
                     function replaceChordsWithNumbers(lyrics) {
@@ -585,133 +590,57 @@ document.getElementById("song-content-editor").addEventListener("paste", functio
                         });
                     }
 
-                    async function deleteSong(songNumber) {
-                        try {
-                            const response = await fetch(`https://api.worshipbuddy.org/spanish_todo_songs/${songNumber}`, {
+                    const rawLyrics = Array.from(document.querySelectorAll("#song-content-editor div, #song-content-editor pre"))
+                        .map(el => el.textContent)
+                        .join("\n");
+
+                    const processedLyrics = replaceChordsWithNumbers(rawLyrics);
+                    const convertedKey = convertKeyToNumber(songKeyInput);
+
+                    const songData = {
+                        song_number: songNumber,
+                        english_number: "",
+                        title: songTitle,
+                        english_title: "",
+                        lyrics: processedLyrics,
+                        key: convertedKey !== null ? convertedKey : 0,
+                        writer: "",
+                        copyright: "",
+                        CCLI: "",
+                        themes: [""]
+                    };
+
+                    try {
+                        const response = await fetch("https://api.worshipbuddy.org/spanish_review_songs/", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(songData)
+                        });
+
+                        if (response.ok) {
+                            console.log("Song posted successfully:", songData);
+                            alert("Song has been successfully posted!");
+
+                            // Step 3: Delete the song from the todo database
+                            await fetch(`https://api.worshipbuddy.org/spanish_todo_songs/${songNumber}`, {
                                 method: "DELETE"
                             });
 
-                            if (response.ok) {
-                                console.log(`Song ${songNumber} deleted successfully.`);
-                            } else {
-                                console.error(`Failed to delete song ${songNumber}: ${response.statusText}`);
-                            }
-                        } catch (error) {
-                            console.error(`Error deleting song ${songNumber}:`, error);
+                            // Step 4: Reload the song list
+                            window.location.reload();
+                        } else {
+                            console.error("Failed to post song:", response.statusText);
+                            alert("Failed to post the song. Please try again.");
                         }
+                    } catch (error) {
+                        console.error("Error posting song:", error);
+                        alert("An error occurred while posting the song.");
                     }
 
-                    async function loadSongList() {
-                        editor.innerHTML = "Loading songs...";
-
-                        try {
-                            const response = await fetch(apiURL, {
-                                method: 'GET',
-                                headers: { 'Content-Type': 'application/json' }
-                            });
-
-                            if (!response.ok) {
-                                throw new Error(`HTTP error! Status: ${response.status}`);
-                            }
-
-                            const songs = await response.json();
-                            const unlockedSongs = songs.filter(song => song.locked === false);
-
-                            if (unlockedSongs.length > 0) {
-                                editor.innerHTML = "Click a song number to edit:<br><br>" +
-                                    unlockedSongs.map(song => `<button class="song-btn btn btn-outline-secondary m-1" data-number="${song.song_number}">Song ${song.song_number}</button>`).join("");
-
-                                // Reattach the event listeners to the newly created buttons
-                                bindSongButtonEvents();
-                            } else {
-                                editor.innerHTML = "No unlocked songs available.";
-                            }
-                        } catch (error) {
-                            console.error("Error fetching songs:", error);
-                            editor.innerHTML = "Failed to load songs. Please try again later.";
-                        }
-                    }
-
-                    function bindSongButtonEvents() {
-                        document.querySelectorAll(".song-btn").forEach(button => {
-                            button.addEventListener("click", async function () {
-                                currentSongNumber = this.dataset.number;
-
-                                try {
-                                    const putResponse = await fetch(`https://api.worshipbuddy.org/spanish_todo_songs/${currentSongNumber}`, {
-                                        method: 'PUT',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ locked_status: true })
-                                    });
-
-                                    if (!putResponse.ok) {
-                                        throw new Error(`Failed to lock song ${currentSongNumber}: ${putResponse.status}`);
-                                    }
-
-                                    console.log(`Song ${currentSongNumber} locked successfully.`);
-                                    loadSongEditor(currentSongNumber);
-                                    startUnlockTimer(currentSongNumber);
-
-                                    window.onbeforeunload = unlockSongOnLeave;
-                                    document.addEventListener("visibilitychange", handleVisibilityChange);
-                                } catch (error) {
-                                    console.error("Error locking the song:", error);
-                                    alert(`Failed to lock song ${currentSongNumber}. Please try again.`);
-                                }
-                            });
-                        });
-                    }
-
-                    button.addEventListener("click", async function () {
-                        const rawLyrics = Array.from(document.querySelectorAll("#song-content-editor div, #song-content-editor pre"))
-                            .map(el => el.textContent) // Use textContent to get raw text (no HTML)
-                            .join("\n"); // Maintain new lines
-
-                        const processedLyrics = replaceChordsWithNumbers(rawLyrics);
-
-                        const songKeyInput = document.getElementById("song-author").value;
-                        const convertedKey = convertKeyToNumber(songKeyInput);
-
-                        const songData = {
-                            song_number: parseInt(songNumber) || 9999,
-                            english_number: "",
-                            title: songTitle,
-                            english_title: "",
-                            lyrics: processedLyrics,
-                            key: convertedKey !== null ? convertedKey : 0,  // Use 0 if key conversion fails
-                            writer: "",
-                            copyright: "",
-                            CCLI: "",
-                            themes: [""]
-                        };
-
-                        try {
-                            const response = await fetch("https://api.worshipbuddy.org/spanish_review_songs/", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify(songData)
-                            });
-
-                            if (response.ok) {
-                                console.log("Song posted successfully:", songData);
-                                alert("Song has been successfully posted!");
-
-                                // Step 1: Delete the song from the todo database
-                                await deleteSong(songNumber);
-
-                                // Step 2: Reload the song list
-                                window.location.reload();
-                                editor.innerHTML = "Song has been submitted. Select another song to edit.";
-                            } else {
-                                console.error("Failed to post song:", response.statusText);
-                                alert("Failed to post the song. Please try again.");
-                            }
-                        } catch (error) {
-                            console.error("Error posting song:", error);
-                            alert("An error occurred while posting the song.");
-                        }
-                    });
-                });
+                    button.textContent = "Finish";
+                    button.disabled = false;  // Re-enable the button
+                }, 1000);  // 1-second delay
+            });
 
                 // Prevent selecting everything inside the editor with Ctrl+A
                 document.addEventListener('keydown', function (e) {
