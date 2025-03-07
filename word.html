@@ -78,21 +78,84 @@
     .line1{
         font-weight: bold;
     }
-
-
+    .leaderboard {
+        background-color: #2c3338;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .leaderboard-title {
+        color: #fff;
+        font-size: 1.2em;
+        margin-bottom: 15px;
+        text-align: center;
+    }
+    .leaderboard-list {
+        display: flex;
+        justify-content: space-around;
+        flex-wrap: wrap;
+    }
+    .leaderboard-item {
+        background-color: #3a4147;
+        border-radius: 6px;
+        padding: 10px 15px;
+        margin: 5px;
+        min-width: 200px;
+        text-align: center;
+    }
+    .leaderboard-rank {
+        font-size: 1.5em;
+        font-weight: bold;
+        color: #ffd700;
+    }
+    .leaderboard-name {
+        color: #fff;
+        margin: 5px 0;
+    }
+    .leaderboard-score {
+        color: #4CAF50;
+        font-weight: bold;
+    }
 </style>
 </head>
   <body>
 
     <div class="container-fluid">
-        <nav class="navbar mb-5 bg-dark border-bottom border-body" data-bs-theme="dark">
+        <nav class="navbar mb-3 bg-dark border-bottom border-body" data-bs-theme="dark">
             <div class="container-fluid">
               <a class="navbar-brand" href="#">
                 <img src="/Grey_Logo.png" alt="Logo" width="30" height="24" class="d-inline-block align-text-top">
                 WorshipBuddy Composer
               </a>
+              <div class="ms-auto">
+                <div id="user-selector" class="text-light">
+                    <select id="user-dropdown" class="form-select bg-dark text-light">
+                        <option value="">Select User</option>
+                        <option value="Joel Roy">Joel Roy</option>
+                        <option value="Ansun Sujoe">Ansun Sujoe</option>
+                        <option value="Jobin Mathew">Jobin Mathew</option>
+                        <option value="Timothy Mathew">Timothy Mathew</option>
+                        <option value="Michael George">Michael George</option>
+                        <option value="Anonymous">Anonymous</option>
+                    </select>
+                </div>
+                <div id="user-welcome" class="text-light d-none">
+                    Welcome <span id="user-name"></span>
+                    <button class="btn btn-link text-light p-0 ms-2" id="change-user">Change User</button>
+                </div>
+              </div>
             </div>
-          </nav>
+        </nav>
+
+        <!-- Add Leaderboard Section -->
+        <div class="leaderboard mb-4">
+            <div class="leaderboard-title">Top Contributors</div>
+            <div class="leaderboard-list" id="leaderboard-list">
+                <!-- Leaderboard items will be dynamically inserted here -->
+            </div>
+        </div>
+
         <div class="row">
 
           <div class=" custom-col-49" >
@@ -664,6 +727,12 @@ document.getElementById("song-content-editor").addEventListener("paste", functio
                     }
 
                     button.addEventListener("click", async function () {
+                        const currentUser = localStorage.getItem('currentUser');
+                        if (!currentUser) {
+                            alert("Please select a user before submitting a song.");
+                            return;
+                        }
+
                         const rawLyrics = Array.from(document.querySelectorAll("#song-content-editor div"))
                             .map(el => {
                                 let line = el.innerHTML.replace(/<br\s*\/?>/g, "\n").replace(/&nbsp;/g, " ");
@@ -684,7 +753,7 @@ document.getElementById("song-content-editor").addEventListener("paste", functio
                         const convertedKey = convertKeyToNumber(songKeyInput);
 
                         const songData = {
-                            song_number: parseInt(songNumber) || 999,
+                            song_number: parseInt(currentSongNumber) || 999,
                             english_number: "",
                             title: songTitle,
                             english_title: "",
@@ -704,11 +773,19 @@ document.getElementById("song-content-editor").addEventListener("paste", functio
                             });
 
                             if (response.ok) {
+                                // Update user's score in localStorage
+                                const scores = JSON.parse(localStorage.getItem('userScores') || '{}');
+                                scores[currentUser] = (scores[currentUser] || 0) + 1;
+                                localStorage.setItem('userScores', JSON.stringify(scores));
+                                
+                                // Update leaderboard display
+                                updateLeaderboard();
+
                                 console.log("Song posted successfully:", songData);
                                 alert("Song has been successfully posted!");
 
                                 // Step 1: Delete the song from the todo database
-                                await deleteSong(songNumber);
+                                await deleteSong(currentSongNumber);
 
                                 // Step 2: Reload the song list
                                 loadSongList();
@@ -774,6 +851,96 @@ document.getElementById("song-content-editor").addEventListener("paste", functio
                 if (document.visibilityState === "hidden" && currentSongNumber) {
                     unlockSong(currentSongNumber);
                 }
+            }
+        });
+    </script>
+
+    <script>
+        // User Management
+        const USERS = [
+            "Joel Roy",
+            "Ansun Sujoe",
+            "Jobin Mathew",
+            "Timothy Mathew",
+            "Michael George",
+            "Anonymous"
+        ];
+
+        // Initialize user scores from localStorage or set defaults
+        function initializeUserScores() {
+            let scores = localStorage.getItem('userScores');
+            if (!scores) {
+                scores = {};
+                USERS.forEach(user => {
+                    scores[user] = 0;
+                });
+                localStorage.setItem('userScores', JSON.stringify(scores));
+            }
+            return JSON.parse(scores);
+        }
+
+        // Update leaderboard display
+        function updateLeaderboard() {
+            const scores = JSON.parse(localStorage.getItem('userScores') || '{}');
+            const leaderboardList = document.getElementById('leaderboard-list');
+            
+            // Convert scores to array and sort by score
+            const sortedUsers = Object.entries(scores)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 4);
+
+            leaderboardList.innerHTML = sortedUsers.map(([name, score], index) => `
+                <div class="leaderboard-item">
+                    <div class="leaderboard-rank">${index + 1}</div>
+                    <div class="leaderboard-name">${name}</div>
+                    <div class="leaderboard-score">${score} songs</div>
+                </div>
+            `).join('');
+        }
+
+        // Handle user selection
+        document.addEventListener('DOMContentLoaded', function() {
+            const userDropdown = document.getElementById('user-dropdown');
+            const userSelector = document.getElementById('user-selector');
+            const userWelcome = document.getElementById('user-welcome');
+            const userName = document.getElementById('user-name');
+            const changeUserBtn = document.getElementById('change-user');
+
+            // Initialize scores and update leaderboard
+            initializeUserScores();
+            updateLeaderboard();
+
+            // Check for existing user in localStorage
+            const currentUser = localStorage.getItem('currentUser');
+            if (currentUser) {
+                showUserWelcome(currentUser);
+            }
+
+            // Handle user selection
+            userDropdown.addEventListener('change', function() {
+                const selectedUser = this.value;
+                if (selectedUser) {
+                    localStorage.setItem('currentUser', selectedUser);
+                    showUserWelcome(selectedUser);
+                }
+            });
+
+            // Handle change user button
+            changeUserBtn.addEventListener('click', function() {
+                showUserDropdown();
+            });
+
+            function showUserWelcome(user) {
+                userSelector.classList.add('d-none');
+                userWelcome.classList.remove('d-none');
+                userName.textContent = user;
+                updateLeaderboard();
+            }
+
+            function showUserDropdown() {
+                userSelector.classList.remove('d-none');
+                userWelcome.classList.add('d-none');
+                userDropdown.value = '';
             }
         });
     </script>
