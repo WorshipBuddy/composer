@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Worship Buddy Composer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://unpkg.com/devices.css/dist/devices.min.css" />
+
+    <style>
+      body {
+        background-color: #212529;
+        color: #ccc;
+        font-family: monospace;
+      }
+      legend {
+        background-color: #333;
+        color: #fff;
+        padding: 4px 6px;
+        font-size: 18px;
+        width: 50%;
+        margin-top: -18px;
+        text-align: center;
+        margin-left: 15px;
+      }
+      .sg-editor, #song-content-editor {
+        background-color: #f0f0f0;
+        color: #0c0c0c;
+        font-family: monospace;
+        font-size: 14px;
+        min-height: 400px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+      }
+      #sg-editor {
+        font-family: monospace;
+        font-size: 14px;
+        min-height: 500px;
+      }
+      #sg-editor * {
+        font-family: monospace;
+        font-size: 14px;
+      }
+      /* Minimal chord style */
+      .chord {
+        font-weight: bold;
+      }
+      #pdf-container {
+        overflow: auto;
+        width: 100%;
+      }
+      #main-container {
+        display: flex;
+        height: calc(100vh - 56px); /* Full viewport height minus navbar */
+      }
+      #pdf-container, #song-list, #editor-container {
+        overflow: auto;
+        padding: 10px;
+      }
+      #pdf-container {
+        flex: 2; /* Larger space for the PDF */
+        border-right: 2px solid #444;
+        background-color: #1e1e1e;
+      }
+
+      #song-list {
+        flex: 1; /* Smaller space for the song list */
+        border-right: 2px solid #444;
+        background-color: #282828;
+      }
+
+      #editor-container {
+        flex: 1; /* Smaller space for the song editor */
+        background-color: #f0f0f0;
+        color: #0c0c0c;
+      }
+      iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+      }
+    </style>
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <nav class="navbar mb-5 bg-dark border-bottom border-body" data-bs-theme="dark">
+        <div class="container-fluid">
+          <a class="navbar-brand" href="#">
+            <img src="/Grey_Logo.png" alt="Logo" width="30" height="24" class="d-inline-block align-text-top">
+            WorshipBuddy Composer - Australian Review
+          </a>
+        </div>
+      </nav>
+      <div id="main-container">
+        <!-- Left Pane: PDF Viewer -->
+        <div id="pdf-container">
+          <iframe src="aus_PDF.pdf"></iframe>
+        </div>
+
+        <!-- Center Pane: Song List -->
+        <div id="song-list">
+          <div id="sg-editor">
+            <h5>Song List Loads here...</h5>
+          </div>
+        </div>
+
+        <!-- Right Pane: Song Editor -->
+        <div id="editor-container">
+          <h5>Song Editor</h5>
+          <form>
+            <div class="mb-3">
+              <label for="song-title" class="form-label">Song Title</label>
+              <input type="text" class="form-control" id="song-title" placeholder="Enter song title">
+            </div>
+            <div class="mb-3">
+              <label for="song-key" class="form-label">Song Key</label>
+              <input type="text" class="form-control" id="song-key" placeholder="Enter song key">
+            </div>
+            <div class="mb-3">
+              <label for="song-content-editor" class="form-label">Lyrics Editor</label>
+              <textarea id="song-content-editor" class="form-control" style="height: 200px; font-family: monospace; white-space: pre; overflow-y: auto;"></textarea>
+            </div>
+            <div class="mb-3 text-end">
+              <button type="button" id="approve-button" class="btn btn-success">Approve</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
+    <script>
+      // ----- New Lyrics Processing Setup -----
+      // Default settings and note definitions
+      const notes = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+      let selectedKey = "C";      // Default key; you can change this as needed
+      let numericChords = false;  // If true, uses numeric chord conversion
+      let chordFormat = "Arabic"; // Only used when numericChords is true
+
+      function getEnharmonic(note, key) {
+        const enharmonicNotes = {
+          "C": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" },
+          "C#": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" },
+          "D": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" },
+          "Eb": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" },
+          "E": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" },
+          "F": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" },
+          "F#": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" },
+          "G": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" },
+          "Ab": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" },
+          "A": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" },
+          "Bb": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" },
+          "B": { "C": "C", "C#": "C#", "D": "D", "Eb": "D#", "E": "E", "F": "F", "F#": "F#", "G": "G", "Ab": "G#", "A": "A", "Bb": "Bb", "B": "B" }
+        };
+        if (enharmonicNotes.hasOwnProperty(key) && enharmonicNotes[key].hasOwnProperty(note)) {
+          return enharmonicNotes[key][note];
+        }
+        return note;
+      }
+
+      function getNumeric(note, key) {
+        const arabicNotes = {
+          "C": { "C": "1", "C#": "#1", "D": "2", "Eb": "#2", "E": "3", "F": "4", "F#": "#4", "G": "5", "Ab": "#5", "A": "6", "Bb": "b7", "B": "7" },
+          "C#": { "C": "7", "C#": "1", "D": "#1", "Eb": "2", "E": "#2", "F": "3", "F#": "4", "G": "#4", "Ab": "5", "A": "#5", "Bb": "6", "B": "b7" },
+          "D": { "C": "b7", "C#": "7", "D": "1", "Eb": "#1", "E": "2", "F": "#2", "F#": "3", "G": "4", "Ab": "#4", "A": "5", "Bb": "#5", "B": "6" },
+          "Eb": { "C": "6", "C#": "b7", "D": "7", "Eb": "1", "E": "#1", "F": "2", "F#": "#2", "G": "3", "Ab": "4", "A": "#4", "Bb": "5", "B": "#5" },
+          "E": { "C": "#5", "C#": "6", "D": "b7", "Eb": "7", "E": "1", "F": "#1", "F#": "2", "G": "#2", "Ab": "3", "A": "4", "Bb": "#4", "B": "5" },
+          "F": { "C": "5", "C#": "#5", "D": "6", "Eb": "b7", "E": "7", "F": "1", "F#": "#1", "G": "2", "Ab": "#2", "A": "3", "Bb": "4", "B": "#4" },
+          "F#": { "C": "#4", "C#": "5", "D": "#5", "Eb": "6", "E": "b7", "F": "7", "F#": "1", "G": "#1", "Ab": "2", "A": "#2", "Bb": "3", "B": "4" },
+          "G": { "C": "4", "C#": "#4", "D": "5", "Eb": "#5", "E": "6", "F": "b7", "F#": "7", "G": "1", "Ab": "#1", "A": "2", "Bb": "#2", "B": "3" },
+          "Ab": { "C": "3", "C#": "4", "D": "#4", "Eb": "5", "E": "#5", "F": "6", "F#": "b7", "G": "7", "Ab": "1", "A": "#1", "Bb": "2", "B": "#2" },
+          "A": { "C": "#2", "C#": "3", "D": "4", "Eb": "#4", "E": "5", "F": "#5", "F#": "6", "G": "b7", "Ab": "7", "A": "1", "Bb": "#1", "B": "2" },
+          "Bb": { "C": "2", "C#": "#2", "D": "3", "Eb": "4", "E": "#4", "F": "5", "F#": "#5", "G": "6", "Ab": "b7", "A": "7", "Bb": "1", "B": "#1" },
+          "B": { "C": "#1", "C#": "2", "D": "#2", "Eb": "3", "E": "4", "F": "#4", "F#": "5", "G": "#5", "Ab": "6", "A": "b7", "Bb": "7", "B": "1" }
+        };
+        if (arabicNotes.hasOwnProperty(key) && arabicNotes[key].hasOwnProperty(note)) {
+          return arabicNotes[key][note];
+        }
+        return note;
+      }
+
+      // Use white-space: pre to preserve spacing in each line
+      function processLyrics(lyrics) {
+  // If 'lyrics' is missing or not a string, return empty
+  if (!lyrics) {
+    console.warn("processLyrics was called with an undefined or empty 'lyrics' parameter");
+    return "";
+  }
+
+  // Normalize Windows line endings to just "\n"
+  lyrics = lyrics.replace(/\r\n/g, "\n");
+
+  // Split the lyrics into an array of lines
+  const lines = lyrics.split("\n");
+
+  // Process each line
+  const processedLines = lines.map((line) => {
+    // 1) Replace chord placeholders: |0|, |1|, etc.
+    line = line.replace(/\|(\d+)\|/g, (match, numStr) => {
+      const noteIndex = parseInt(numStr, 10);
+      const baseNote = notes[noteIndex] || "";
+      let chordText = numericChords
+        ? getNumeric(baseNote, selectedKey)
+        : getEnharmonic(baseNote, selectedKey);
+
+      // If chord has # or b, split out the accidental
+      if (chordText.includes("#") || chordText.includes("b")) {
+        const parts = chordText.split(/(?=[#b])/);
+        if (parts.length >= 2) {
+          chordText =
+            parts[0] +
+            '<span style="font-size:0.9em;">' +
+            parts[1] +
+            "</span>" +
+            (parts.slice(2).join("") || "");
+        }
+      }
+      return `<span class="chord">${chordText}</span>`;
+    });
+
+    // 2) Replace *asterisked text* with <strong>
+    line = line.replace(/\*(.*?)\*/g, "<strong>$1</strong>");
+
+    // 3) If the line is empty, we output a blank line <div> 
+    //    so it creates that extra space for a double newline
+    if (line.trim() === "") {
+      // This yields a visible blank line
+      return `<div style="white-space: pre;"><br></div>`;
+    }
+
+    // 4) Otherwise, wrap the line in a div with white-space: pre
+    return `<div style="white-space: pre;">${line}</div>`;
+  });
+
+  // Join everything into a single HTML string
+  return processedLines.join("");
+}
+
+
+      let songsData = [];
+
+      document.addEventListener("DOMContentLoaded", async function () {
+        const apiURL = "https://api.worshipbuddy.org/aus_review_songs/";
+        const editor = document.getElementById("sg-editor");
+        let currentSongNumber = null;
+        let unlockTimer = null;
+
+        try {
+          const response = await fetch(apiURL, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+          songsData = await response.json();
+          console.log(songsData);
+
+          if (songsData.length > 0) {
+            editor.innerHTML = "Click a song number to review:<br><br>" +
+              songsData.map(song => `<button class="song-btn btn btn-outline-secondary m-1" data-number="${song.song_number}">Song ${song.song_number}</button>`).join("");
+          } else {
+            editor.innerHTML = "No songs available for review.";
+          }
+
+          document.querySelectorAll(".song-btn").forEach(button => {
+            button.addEventListener("click", function () {
+              currentSongNumber = this.dataset.number;
+              loadSongEditor(currentSongNumber);
+            });
+          });
+        } catch (error) {
+          console.error("Error fetching songs:", error);
+          editor.innerHTML = "Failed to load songs. Please try again later.";
+        }
+
+        function loadSongEditor(songNumber) {
+          // Find the song object using the song number
+          const song = songsData.find(s => s.song_number == songNumber);
+          if (!song) {
+            console.error("Song not found!");
+            return;
+          }
+          const reverseKeyMap = {
+            0: "C", 1: "C#", 2: "D", 3: "Eb", 4: "E", 5: "F", 6: "F#", 7: "G",
+            8: "Ab", 9: "A", 10: "Bb", 11: "B", 12: "Cm", 13: "C#m", 14: "Dm",
+            15: "Ebm", 16: "Em", 17: "Fm", 18: "F#m", 19: "Gm", 20: "Abm",
+            21: "Am", 22: "Bbm", 23: "Bm"
+          };
+          document.getElementById("song-title").value = song.title || "";
+          document.getElementById("song-key").value = reverseKeyMap[song.key] || "";
+          document.getElementById("song-content-editor").value = song.lyrics.replace(/<br\s*\/?>/gi, "\n");
+
+          console.log(`Loading song ${songNumber} with key ${reverseKeyMap[song.key]}`);
+
+
+          editor.innerHTML = `
+            <div class="mt-3" id="song-details">
+              <label for="song-author" class="form-label">Song Key ${song.key}</label>
+              <div class="marvel-device iphone-x">
+                <div class="notch">
+                    <div class="camera"></div>
+                    <div class="speaker"></div>
+                </div>
+                <div class="top-bar"></div>
+                <div class="sleep"></div>
+                <div class="bottom-bar"></div>
+                <div class="volume"></div>
+                <div class="overflow">
+                    <div class="shadow shadow--tr"></div>
+                    <div class="shadow shadow--tl"></div>
+                    <div class="shadow shadow--br"></div>
+                    <div class="shadow shadow--bl"></div>
+                </div>
+                <div class="inner-shadow"></div>
+                <div class="screen">
+                    ${songNumber}. ${song.title}<br><br>${processLyrics(song.lyrics)}
+                </div>
+                </div>
+             
+            </div>
+          `;
+          console.log("Loading song " + songNumber + "...");
+
+       
+        }
+
+        document.getElementById("approve-button").addEventListener("click", async function () {
+          const keyMap = {
+            "C": 0, "C#": 1, "D": 2, "Eb": 3, "E": 4, "F": 5, "F#": 6, "G": 7,
+            "Ab": 8, "A": 9, "Bb": 10, "B": 11, "Cm": 12, "C#m": 13, "Dm": 14,
+            "Ebm": 15, "Em": 16, "Fm": 17, "F#m": 18, "Gm": 19, "Abm": 20,
+            "Am": 21, "Bbm": 22, "Bm": 23
+          };
+
+          const songTitle = document.getElementById("song-title").value.trim();
+          const songKey = document.getElementById("song-key").value.trim();
+          const songLyrics = document.getElementById("song-content-editor").value.trim();
+          const currentSongNumberInt = parseInt(currentSongNumber, 10); // Convert to integer
+
+          if (!songTitle || !songLyrics || !currentSongNumberInt) {
+            alert("Please ensure the song has a title, lyrics, and a valid song number.");
+            return;
+          }
+
+          const numericKey = keyMap[songKey] !== undefined ? keyMap[songKey] : 0;
+
+          const payload = {
+            song_number: currentSongNumberInt,
+            english_number: "",
+            title: songTitle,
+            english_title: "",
+            lyrics: songLyrics,
+            key: numericKey,
+            writer: "",
+            copyright: "",
+            CCLI: "",
+            themes: []
+          };
+
+          const username = "Jobinmthomas123";
+          const password = "1234";
+          const basicAuth = "Basic " + btoa(`${username}:${password}`);
+
+          try {
+            // POST request to add the song
+            const response = await fetch("https://api.worshipbuddy.org/aus/songbook_songs/", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": basicAuth
+              },
+              body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+              alert("Song approved successfully!");
+
+              // DELETE request to remove from review database
+              const deleteResponse = await fetch(`https://api.worshipbuddy.org/aus_review_songs/${currentSongNumberInt}`, {
+                method: "DELETE",
+                headers: {
+                  "Authorization": basicAuth
+                }
+              });
+
+              if (deleteResponse.ok) {
+                console.log(`Song ${currentSongNumberInt} deleted successfully from review.`);
+                clearEditorAndReturnToSelection();
+              } else {
+                console.error(`Failed to delete song ${currentSongNumberInt} from review.`);
+              }
+            } else {
+              const errorText = await response.text();
+              console.error("Failed to approve song:", errorText);
+              alert(`Failed to approve song. Status: ${response.status}`);
+            }
+          } catch (error) {
+            console.error("Error approving song:", error);
+            alert("An error occurred while approving the song.");
+          }
+        });
+
+        function clearEditorAndReturnToSelection() {
+          // Clear the editor inputs
+          document.getElementById("song-title").value = "";
+          document.getElementById("song-key").value = "";
+          document.getElementById("song-content-editor").value = "";
+          currentSongNumber = null;
+
+          // Fetch the updated list of songs from the review endpoint
+          fetch("https://api.worshipbuddy.org/aus_review_songs/", {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json"
+            }
+          })
+                  .then(response => {
+                    if (!response.ok) {
+                      throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                  })
+                  .then(updatedSongs => {
+                    songsData = updatedSongs;
+                    if (songsData.length > 0) {
+                      document.getElementById("sg-editor").innerHTML = "Click a song number to review:<br><br>" +
+                              songsData.map(song => `<button class="song-btn btn btn-outline-secondary m-1" data-number="${song.song_number}">Song ${song.song_number}</button>`).join("");
+
+                      document.querySelectorAll(".song-btn").forEach(button => {
+                        button.addEventListener("click", function () {
+                          currentSongNumber = this.dataset.number;
+                          loadSongEditor(currentSongNumber);
+                        });
+                      });
+                    } else {
+                      document.getElementById("sg-editor").innerHTML = "No songs available for review.";
+                    }
+                  })
+                  .catch(error => {
+                    console.error("Error refreshing song list:", error);
+                    document.getElementById("sg-editor").innerHTML = "Failed to load songs. Please try again later.";
+                  });
+        }
+
+        // Prevent full selection with Ctrl+A in the editor
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'a' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            const contentEditor = document.getElementById('song-content-editor');
+            const range = document.createRange();
+            const selection = window.getSelection();
+            range.selectNodeContents(contentEditor);
+            selection.removeAllRanges();
+            selection.addRange(range);
+          }
+        });
+
+        function startUnlockTimer(songNumber) {
+          if (unlockTimer) clearTimeout(unlockTimer);
+          unlockTimer = setTimeout(async function () {
+            await unlockSong(songNumber);
+          }, 5 * 60 * 1000);
+        }
+
+        async function unlockSong(songNumber) {
+          try {
+            const unlockResponse = await fetch(`https://api.worshipbuddy.org/aus_review_songs/${songNumber}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ locked_status: false })
+            });
+            if (!unlockResponse.ok) {
+              throw new Error(`Failed to unlock song ${songNumber}: ${unlockResponse.status}`);
+            }
+            console.log(`Song ${songNumber} unlocked successfully.`);
+          } catch (error) {
+            console.error("Error unlocking the song:", error);
+          }
+        }
+      });
+    </script>
+  </body>
+</html>
