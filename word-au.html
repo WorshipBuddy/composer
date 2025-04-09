@@ -384,7 +384,7 @@ const paragraphs = tempDiv.querySelectorAll("p");
 // Regex for detecting chords
 const notes = "[CDEFGAB]";
 const accidentals = "(b|bb|#)?";
-const chords = "(m|maj7|maj|min7|min|sus|dim|aug)?";
+const chords = "(m|maj7|maj|min7|min|sus2|sus4|sus|dim|aug|7sus)?";
 const suspends = "(1|2|3|4|5|6|7|8|9)?";
 const regex = new RegExp("\\b" + notes + accidentals + chords + suspends + "\\b", "g");
 
@@ -465,11 +465,11 @@ document.getElementById("song-content-editor").addEventListener("paste", functio
     // Select all <p> tags within the pasted content
     const paragraphs = tempDiv.querySelectorAll("p");
 
-    // Regex for detecting chords
-    const notes = "[CDEFGAB]";
-    const accidentals = "(b|bb|#)?";
-    const chords = "(m|maj7|maj|min7|min|sus|dim|aug)?";
-    const suspends = "(1|2|3|4|5|6|7|8|9)?";
+// Regex for detecting chords
+const notes = "[CDEFGAB]";
+const accidentals = "(b|bb|#)?";
+const chords = "(m|maj7|maj|min7|min|sus2|sus4|sus|dim|aug|7sus)?";
+const suspends = "(1|2|3|4|5|6|7|8|9)?";
     const regex = new RegExp("\\b" + notes + accidentals + chords + suspends + "\\b", "g");
 
     let resultText = "";
