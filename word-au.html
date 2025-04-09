@@ -394,7 +394,8 @@ let previousChordsLine = null;
 // Process each <p> tag to check for chords and align them
 const processedLines = [];
 paragraphs.forEach(p => {
-    const lineText = p.textContent.trim();
+    let lineText = p.textContent ? p.textContent.trim() : '';
+    if (lineText === "") return;
    
 
     // Check if the line contains chords using regex
@@ -414,12 +415,28 @@ paragraphs.forEach(p => {
     }
 });
 
-// Build the resultText from processed lines
-processedLines.forEach(line => {
+    // Build the resultText from processed lines with spacing logic
+    processedLines.forEach(line => {
+        let textToInsert = line.text;
+
+        // Add spacing logic
+        if (line.type === "lyric") {
+            if (/^\d+\./.test(textToInsert)) {
+                // Add space after the number-dot only
+                textToInsert = textToInsert.replace(/^(\d+\.)/, '$1 ');
+            } else if (/^Chorus:/i.test(textToInsert)) {
+                // Leave Chorus: left-justified
+                // No change
+            } else {
+                // Apply 3-space indent
+                textToInsert = '&nbsp;&nbsp;&nbsp;' + textToInsert;
+            }
+        }
+
     if (line.type === "chord") {
-        resultText += `<div class="chord">${line.text}</div>`;
+        resultText += `<div class="chord">${textToInsert}</div>`;
     } else {
-        resultText += `<div>${line.text}</div>`;
+        resultText += `<div>${textToInsert}</div>`;
     }
 });
 
@@ -430,9 +447,8 @@ console.log("inside new function ... "+jsonResult)
 // Log JSON and insert cleaned content into the editor
 // console.log(jsonResult);
 
-// Insert cleaned and formatted content into the editor
-//document.execCommand("insertHTML", false, resultText.trim());
-document.getElementById("song-content-editor").innerHTML = resultText.trim();
+    resultText = resultText.replace(/^\s*/gm, match => match.replace(/&nbsp;/g, ' '));
+    document.getElementById("song-content-editor").innerHTML = resultText.replace(/^\s*<div>/gm, '<div>');
 }
 
 document.getElementById("song-content-editor").addEventListener("paste", function (e) {
@@ -460,26 +476,32 @@ document.getElementById("song-content-editor").addEventListener("paste", functio
     let previousChordsLine = null;
 
     // Process each <p> tag to check for chords and align them
-    const processedLines = [];
-    paragraphs.forEach(p => {
-        const lineText = p.textContent.trim();
-
-        // Check if the line contains chords using regex
-        const chords = lineText.match(regex);
-
-        if (chords) {
-            // Save the line with chords for alignment with the next line
-            previousChordsLine = lineText;
-        } else {
-            // If this is a lyric line, align it with the previous chords line (if any)
-            if (previousChordsLine) {
-                const alignedChordsLine = alignChords(previousChordsLine, lineText);
-                processedLines.push({ text: alignedChordsLine, type: "chord" });
-                previousChordsLine = null; // Reset
-            }
-            processedLines.push({ text: lineText, type: "lyric" });
+const processedLines = [];
+paragraphs.forEach(p => {
+    let lineText = p.textContent.trim();
+   
+    // Check if the line contains chords using regex
+    const chords = lineText.match(regex);
+ 
+    if (chords) {
+        // Save the line with chords for alignment with the next line
+        previousChordsLine = lineText;
+    } else {
+        // If this is a lyric line, align it with the previous chords line (if any)
+        if (previousChordsLine) {
+            const alignedChordsLine = alignChords(previousChordsLine, lineText);
+            processedLines.push({ text: alignedChordsLine, type: "chord" });
+            previousChordsLine = null; // Reset
         }
-    });
+        // Add spacing logic after trimming
+        if (/^\d+\./.test(lineText)) {
+            lineText = lineText.replace(/^(\d+\.)/, '&nbsp;&nbsp;&nbsp;$1 ');
+        } else {
+            lineText = '&nbsp;&nbsp;&nbsp;' + lineText;
+        }
+        processedLines.push({ text: lineText, type: "lyric" });
+    }
+});
 
     // Build the resultText from processed lines
     processedLines.forEach(line => {
@@ -694,6 +716,26 @@ document.getElementById("song-content-editor").addEventListener("paste", functio
                 }
             }
         });
+
+        function pasteLyrics(lyrics) {
+            // Split lyrics into lines
+            const lines = lyrics.split('\n');
+            
+            // Process each line
+            const formattedLines = lines.map(line => {
+                // Check if line starts with a number followed by a period
+                if (/^\d+\./.test(line)) {
+                    // Add one space after the number and period
+                    return line.replace(/^(\d+\.)/, '$1 ');
+                } else {
+                    // Add three spaces at the start of other lines
+                    return '   ' + line;
+                }
+            });
+            
+            // Join the lines back together
+            return formattedLines.join('\n');
+        }
     </script>
 
 </body>
